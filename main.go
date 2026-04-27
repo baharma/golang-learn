@@ -4,17 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
 var PORT = ":8030"
 
-type Emplyee struct {
+type Employee struct {
+	ID   int
 	Name string
 	Age  int
 }
 
-var emp = []Emplyee{
+var emp = []Employee{
 	{Name: "John", Age: 30},
 	{Name: "Jane", Age: 25},
 }
@@ -34,20 +34,26 @@ func greet(w http.ResponseWriter, r *http.Request) {
 
 func createEmployee(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if r.Method == http.MethodPost {
-		name := r.FormValue("name")
-		age := r.FormValue("age")
-
-		convertedAge, err := strconv.Atoi(age)
-		if err != nil {
-			http.Error(w, "Invalid age", http.StatusBadRequest)
-			return
-		}
-		newEmployee := Emplyee{Name: name, Age: convertedAge}
-		json.NewEncoder(w).Encode(newEmployee)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Not implemented", http.StatusNotImplemented)
 		return
 	}
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	var input Employee
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err != nil  {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	newEmployee := Employee{
+		ID:   len(emp) + 1,
+		Name: input.Name,
+		Age:  input.Age,
+	}
+	emp = append(emp, newEmployee)
+	json.NewEncoder(w).Encode(newEmployee)
+	return
+
+	
 }
 
 func getEmployees(w http.ResponseWriter, r *http.Request) {
