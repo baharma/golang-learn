@@ -1,10 +1,22 @@
 package main
 
 import (
+	"belajar-go/database"
 	"belajar-go/routers"
-	"encoding/json"
+	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
+const (
+	host     = "localhost"
+	port     = "3306"
+	user     = "root"
+	password = "baharma1899"
+	dbname   = "car_db"
 )
 
 var PORT = ":8030"
@@ -15,56 +27,40 @@ type Employee struct {
 	Age  int
 }
 
-var emp = []Employee{
-	{Name: "John", Age: 30},
-	{Name: "Jane", Age: 25},
-}
-
 func main() {
-	var PORT = ":8030"
-	routers.StartServer().Run(PORT)
-	// http.HandleFunc("/", greet)
-	// http.HandleFunc("/employees", getEmployees)
-	// http.HandleFunc("/employee", createEmployee)
-	// fmt.Printf("Server is running on http://localhost%s\n", PORT)
-	// http.ListenAndServe(PORT, nil)
+	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, dbname)
+	var err error
+
+	database.DB, err = sql.Open("mysql", mysqlDSN)
+
+	if err != nil {
+		log.Fatal("Error connecting to database: ", err)
+	}
+
+	if err = database.DB.Ping(); err != nil {
+		log.Fatal("Error pinging database: ", err)
+	}
+
+	if err != nil {
+		log.Fatal("Error pinging database: ", err)
+	}
+
+	fmt.Println("Successfully connected to the database!")
+
+	server := routers.StartServer()
+
+	fmt.Printf("Server is running on port %s\n", PORT)
+	if err := server.Run(PORT); err != nil {
+		log.Fatal("Error starting server: ", err)
+	}
+
+	err = server.Run(":8030")
+	if err != nil {
+		log.Fatal("Gagal menjalankan server: ", err)
+	}
 }
 
 func greet(w http.ResponseWriter, r *http.Request) {
 	msg := "Hello, World!"
 	fmt.Fprintln(w, msg)
-}
-
-func createEmployee(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if r.Method != http.MethodPost {
-		http.Error(w, "Not implemented", http.StatusNotImplemented)
-		return
-	}
-	var input Employee
-	err := json.NewDecoder(r.Body).Decode(&input)
-	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-	newEmployee := Employee{
-		ID:   len(emp) + 1,
-		Name: input.Name,
-		Age:  input.Age,
-	}
-	emp = append(emp, newEmployee)
-	json.NewEncoder(w).Encode(newEmployee)
-	return
-
-}
-
-func getEmployees(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method == http.MethodGet {
-		json.NewEncoder(w).Encode(emp)
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
