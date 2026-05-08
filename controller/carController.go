@@ -1,107 +1,116 @@
 package controller
 
 import (
-	"errors"
+	"belajar-go/database"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Car struct {
-	CardId int
-	Brand  string
-	Model  string
-	Year   int
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 var cars []Car
 
+func GetCars(ctx *gin.Context) {
+	rows, err := database.DB.Query("SELECT id, name FROM cars")
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query cars"})
+		return
+	}
+	defer rows.Close()
+
+	cars = []Car{}
+	for rows.Next() {
+		var car Car
+		if err := rows.Scan(&car.ID, &car.Name); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan car"})
+			return
+		}
+		cars = append(cars, car)
+	}
+
+	if len(cars) == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "No cars found"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, cars)
+}
+
 func CreateCar(ctx *gin.Context) {
 	var newCar Car
 	if err := ctx.BindJSON(&newCar); err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, errors.New("Invalid request body"))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	newCar.CardId = len(cars) + 1
-	cars = append(cars, newCar)
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Car created successfully", "car": newCar})
-}
 
-func UpdateCar(ctx *gin.Context) {
-	carId, err := strconv.Atoi(ctx.Param("id"))
+	result, err := database.DB.Exec("INSERT INTO cars (name) VALUES (?)", newCar.Name)
 	if err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, errors.New("Invalid car id"))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create car"})
 		return
 	}
 
-	condition := false
-	var updatedCar Car
+	id, _ := result.LastInsertId()
+	newCar.ID = int(id)
+	cars = append(cars, newCar)
 
-	if err := ctx.BindJSON(&updatedCar); err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, errors.New("Invalid request body"))
-		return
-	}
-	for i, car := range cars {
-		if carId == car.CardId {
-			updatedCar.CardId = car.CardId
-			cars[i] = updatedCar
-			condition = true
-			break
-		}
-	}
-
-	if condition {
-		ctx.JSON(http.StatusOK, gin.H{"message": "Car updated successfully", "car": updatedCar})
-	} else {
-		ctx.AbortWithError(http.StatusNotFound, errors.New("Car not found"))
-	}
-
-}
-
-func GetCars(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"message": "Cars found", "cars": cars})
+	ctx.JSON(http.StatusCreated, newCar)
 }
 
 func GetCarByID(ctx *gin.Context) {
-	carID, err := strconv.Atoi(ctx.Param("id"))
+	var getCar Car
+	id := ctx.Param("id")
+
+	err := database.DB.QueryRow("SELECT id, name FROM cars WHERE id = ?", id).Scan(&getCar.ID, &getCar.Name)
 	if err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, errors.New("Invalid car id"))
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
 		return
 	}
 
-	condition := false
-	var carData Car
+	ctx.JSON(http.StatusOK, getCar)
+}
 
-	for _, car := range cars {
-		if carID == car.CardId {
-			carData = car
-			condition = true
-			break
-		}
+func UpdateCar(ctx *gin.Context) {
+	var updateCar Car
+	id := ctx.Param("id")
+
+	if err := ctx.BindJSON(&updateCar); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
 	}
 
-	if condition {
-		ctx.JSON(http.StatusOK, gin.H{"message": "Car found", "car": carData})
-	} else {
-		ctx.AbortWithError(http.StatusNotFound, errors.New("Car not found"))
+	result, err := database.DB.Exec("UPDATE cars SET name = ? WHERE id = ?", updateCar.Name, id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update car"})
+		return
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
+		return
+	}
+
+	updateCar.ID = int(rowsAffected)
+	ctx.JSON(http.StatusOK, updateCar)
 }
 
 func DeleteCar(ctx *gin.Context) {
-	carID, err := strconv.Atoi(ctx.Param("id"))
+	id := ctx.Param("id")
+	result, err := database.DB.Exec("DELETE FROM cars WHERE id = ?", id)
 	if err != nil {
-		ctx.AbortWithError(http.StatusBadRequest, errors.New("Invalid car id"))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete car"})
 		return
 	}
 
-	for i, car := range cars {
-		if carID == car.CardId {
-			cars = append(cars[:i], cars[i+1:]...)
-			ctx.JSON(http.StatusOK, gin.H{"message": "Car deleted successfully"})
-			return
-		}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
+		return
 	}
 
-	ctx.AbortWithError(http.StatusNotFound, errors.New("Car not found"))
+	ctx.JSON(http.StatusOK, gin.H{"message": "Car deleted successfully"})
 }
