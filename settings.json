@@ -1,0 +1,13 @@
+{
+    "[go]": {
+    "editor.lookup.maxNumberOfItems": 1000,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always" 
+    }
+    },
+    "gopls": {
+        "ui.completion.usePlaceholders": true,
+        "ui.semanticTokens": true
+    }
+}

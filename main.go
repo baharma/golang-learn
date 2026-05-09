@@ -2,13 +2,14 @@ package main
 
 import (
 	"belajar-go/database"
+	"belajar-go/models"
 	"belajar-go/routers"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 
-	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 const (
@@ -31,19 +32,20 @@ func main() {
 	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, dbname)
 	var err error
 
-	database.DB, err = sql.Open("mysql", mysqlDSN)
+	database.DB, err = gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
 
 	if err != nil {
 		log.Fatal("Error connecting to database: ", err)
 	}
 
-	if err = database.DB.Ping(); err != nil {
-		log.Fatal("Error pinging database: ", err)
-	}
-
 	if err != nil {
 		log.Fatal("Error pinging database: ", err)
 	}
+
+	database.DB.AutoMigrate(
+		&models.Car{},
+		&models.Product{},
+	)
 
 	fmt.Println("Successfully connected to the database!")
 
