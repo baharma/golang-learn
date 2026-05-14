@@ -3,20 +3,9 @@ package main
 import (
 	"belajar-go/database"
 	"belajar-go/routers"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-
-	_ "github.com/go-sql-driver/mysql"
-)
-
-const (
-	host     = "localhost"
-	port     = "3306"
-	user     = "root"
-	password = "baharma1899"
-	dbname   = "car_db"
 )
 
 var PORT = ":8030"
@@ -28,17 +17,11 @@ type Employee struct {
 }
 
 func main() {
-	mysqlDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, dbname)
+	database.ConnectDatabase()
 	var err error
-
-	database.DB, err = sql.Open("mysql", mysqlDSN)
 
 	if err != nil {
 		log.Fatal("Error connecting to database: ", err)
-	}
-
-	if err = database.DB.Ping(); err != nil {
-		log.Fatal("Error pinging database: ", err)
 	}
 
 	if err != nil {
